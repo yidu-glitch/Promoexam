@@ -1,0 +1,2115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PromExam Code 7 — Aviation Maintenance CBT Simulator</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+  <!-- Tone.js for subtle synthetic CBT terminal audio -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased min-h-screen flex flex-col transition-colors duration-200 selection:bg-sky-600 selection:text-white">
+
+  <!-- ==================== TOP CBT TERMINAL BAR ==================== -->
+  <header class="sticky top-0 z-30 bg-slate-900 dark:bg-slate-900/95 backdrop-blur border-b border-slate-800 text-white shadow-sm">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
+      <!-- Left: System Identity -->
+      <button id="homeLogoBtn" type="button" class="flex items-center gap-2.5 sm:gap-3 text-left group min-w-0 focus:outline-none">
+        <div class="w-9 h-9 rounded-xl bg-sky-600 group-hover:bg-sky-500 transition-colors flex items-center justify-center shrink-0 shadow-inner">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-sm sm:text-base tracking-tight truncate">PromExam Code 7</span>
+            <span class="hidden md:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-sky-500/20 text-sky-300 border border-sky-500/30">
+              CBT Terminal
+            </span>
+          </div>
+          <p id="headerCandidateLabel" class="text-[11px] text-slate-400 truncate">Aviation Maintenance Examination</p>
+        </div>
+      </button>
+
+      <!-- Center: Live Timer & Exam Status (Only shown during Active Exam / Pre-Submit Review) -->
+      <div id="examHeaderCenter" class="hidden items-center gap-2 sm:gap-3">
+        <div id="timerPill" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 font-mono text-sm sm:text-base font-bold tracking-wider">
+          <svg class="w-4 h-4 text-sky-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span id="timerText">30:00</span>
+        </div>
+        <!-- Mobile Navigator Button -->
+        <button id="openMobileGridBtn" type="button" class="lg:hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+            <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+            <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+            <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+          </svg>
+          <span id="mobileGridBadge">0/25</span>
+        </button>
+      </div>
+
+      <!-- Right: Realistic Terminal Controls (Font Scale, Scratchpad, Audio, Theme) -->
+      <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <!-- Scratchpad Button (Visible during Exam) -->
+        <button id="scratchpadToggleBtn" type="button" class="hidden p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-colors" title="Exam Scratchpad">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </button>
+
+        <!-- Text Size Cycle (CBT Accessibility) -->
+        <button id="fontSizeBtn" type="button" class="hidden sm:inline-flex items-center justify-center px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-300 hover:text-white transition-colors" title="Adjust question font size">
+          Aa
+        </button>
+
+        <!-- Sound Toggle -->
+        <button id="audioToggleBtn" type="button" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-colors" title="Toggle terminal sounds">
+          <svg id="audioOnSvg" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+          <svg id="audioOffSvg" class="w-4 h-4 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          </svg>
+        </button>
+
+        <!-- Dark Mode Toggle -->
+        <button id="themeToggleBtn" type="button" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-colors" title="Toggle Dark/Light Theme">
+          <svg id="sunIcon" class="w-4 h-4 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg id="moonIcon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Slim Live Progress Track -->
+    <div id="examProgressTrack" class="hidden w-full h-1 bg-slate-800">
+      <div id="examProgressFill" class="h-1 bg-sky-500 transition-all duration-300" style="width: 0%"></div>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN WORKSPACE ==================== -->
+  <main class="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 py-5 sm:py-8">
+
+    <!-- ================================================================ -->
+    <!-- VIEW 1: CANDIDATE LOBBY & EXAM LAUNCHER                          -->
+    <!-- ================================================================ -->
+    <section id="viewLobby" class="space-y-6">
+
+      <!-- Auto-Saved Active Session Banner -->
+      <div id="resumeBanner" class="hidden rounded-2xl border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-950/40 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="flex items-start gap-3.5">
+          <div class="w-11 h-11 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 class="text-sm sm:text-base font-bold text-amber-950 dark:text-amber-100">Session Recovered from Memory</h2>
+              <span id="resumeBadge" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100">Official Exam</span>
+            </div>
+            <p id="resumeDetails" class="text-xs sm:text-sm text-amber-800 dark:text-amber-200/80 mt-0.5">0 of 25 answered • 30:00 left</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2.5 w-full sm:w-auto">
+          <button id="discardSavedBtn" type="button" class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-semibold transition-colors">
+            Discard
+          </button>
+          <button id="resumeSavedBtn" type="button" class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold shadow-sm transition-colors flex items-center justify-center gap-2">
+            <span>Resume Exam</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Left Column: Candidate Check-in & Exam Setup (7 cols) -->
+        <div class="lg:col-span-7 space-y-6">
+          <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <!-- Hero Header -->
+            <div class="p-6 sm:p-7 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950 text-white border-b border-slate-800">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  25 Verified Questions
+                </span>
+                <span class="font-mono text-xs text-slate-400">DOC: PromExamCode 7</span>
+              </div>
+              <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Promotion Examination — Code 7</h1>
+              <p class="text-slate-300 text-sm mt-2 leading-relaxed">
+                Realistic proctored testing simulator covering FAR/EASA Part 65 &amp; 66, Fuel Tank Safety &amp; CDCCL, EWIS, Human Factors (SHELL &amp; Dirty Dozen), and Maintenance Documentation.
+              </p>
+
+              <!-- Quick Specs Strip -->
+              <div class="grid grid-cols-3 gap-2.5 sm:gap-3 mt-5">
+                <div class="rounded-xl bg-white/5 border border-white/10 p-3">
+                  <p class="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Bank Size</p>
+                  <p class="text-base sm:text-lg font-bold mt-0.5">25 Items</p>
+                </div>
+                <div class="rounded-xl bg-white/5 border border-white/10 p-3">
+                  <p class="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Pass Mark</p>
+                  <p class="text-base sm:text-lg font-bold mt-0.5">75% <span class="text-xs font-normal text-slate-400">(19/25)</span></p>
+                </div>
+                <div class="rounded-xl bg-white/5 border border-white/10 p-3">
+                  <p class="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Memory</p>
+                  <p class="text-base sm:text-lg font-bold mt-0.5 text-emerald-400">Auto-Save</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Configuration Form -->
+            <div class="p-5 sm:p-7 space-y-6">
+              <!-- Candidate Check-In -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label for="candidateNameInput" class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Candidate Name</label>
+                  <input id="candidateNameInput" type="text" placeholder="e.g. Eng. Abebe T." class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                </div>
+                <div>
+                  <label for="candidateIdInput" class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">License / Staff ID</label>
+                  <input id="candidateIdInput" type="text" placeholder="e.g. AMT-2047" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono font-medium focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                </div>
+              </div>
+
+              <!-- Mode Selector -->
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Examination Mode</label>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <button type="button" data-mode="exam" class="mode-card text-left p-3.5 rounded-xl border-2 border-sky-600 bg-sky-50/70 dark:bg-sky-950/40 transition-all focus:outline-none">
+                    <div class="flex items-center justify-between mb-1">
+                      <span class="font-bold text-sm text-slate-900 dark:text-white">Official Exam</span>
+                      <span class="mode-dot w-3.5 h-3.5 rounded-full border-4 border-sky-600 bg-white"></span>
+                    </div>
+                    <p class="text-[11px] text-slate-600 dark:text-slate-400 leading-snug">Timed proctored simulation. Grades revealed after submit.</p>
+                  </button>
+
+                  <button type="button" data-mode="study" class="mode-card text-left p-3.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:border-slate-300 transition-all focus:outline-none">
+                    <div class="flex items-center justify-between mb-1">
+                      <span class="font-bold text-sm text-slate-900 dark:text-white">Study Mode</span>
+                      <span class="mode-dot w-3.5 h-3.5 rounded-full border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"></span>
+                    </div>
+                    <p class="text-[11px] text-slate-600 dark:text-slate-400 leading-snug">Untimed with immediate answer verification on click.</p>
+                  </button>
+
+                  <button id="missedModeCard" type="button" data-mode="missed" class="mode-card text-left p-3.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:border-slate-300 transition-all focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+                    <div class="flex items-center justify-between mb-1">
+                      <span class="font-bold text-sm text-slate-900 dark:text-white">Weak Drill</span>
+                      <span class="mode-dot w-3.5 h-3.5 rounded-full border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"></span>
+                    </div>
+                    <p id="missedModeDesc" class="text-[11px] text-slate-600 dark:text-slate-400 leading-snug">Practice questions you previously missed.</p>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Timer & Shuffle Controls -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div id="durationPickerWrap" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+                  <label for="durationSelect" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Time Limit</label>
+                  <select id="durationSelect" class="w-full bg-transparent text-sm font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer">
+                    <option value="1500" class="text-slate-900">25 Minutes</option>
+                    <option value="1800" selected class="text-slate-900">30 Minutes (Std)</option>
+                    <option value="2700" class="text-slate-900">45 Minutes</option>
+                  </select>
+                </div>
+
+                <label class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 cursor-pointer">
+                  <div>
+                    <span class="block text-xs font-bold text-slate-800 dark:text-slate-100">Shuffle Qs</span>
+                    <span class="block text-[11px] text-slate-500 dark:text-slate-400">Random order</span>
+                  </div>
+                  <input id="shuffleQuestionsChk" type="checkbox" class="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer" />
+                </label>
+
+                <label class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 cursor-pointer">
+                  <div>
+                    <span class="block text-xs font-bold text-slate-800 dark:text-slate-100">Shuffle A/B/C</span>
+                    <span class="block text-[11px] text-slate-500 dark:text-slate-400">Random choices</span>
+                  </div>
+                  <input id="shuffleOptionsChk" type="checkbox" class="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer" />
+                </label>
+              </div>
+
+              <!-- Launch CTA -->
+              <div>
+                <button id="launchExamBtn" type="button" class="w-full py-3.5 px-6 rounded-xl bg-sky-600 hover:bg-sky-700 active:scale-[0.99] text-white font-bold text-base shadow-md shadow-sky-600/20 transition-all flex items-center justify-center gap-2.5">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  <span id="launchBtnLabel">Begin Official Examination</span>
+                </button>
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 text-center mt-2.5">
+                  Shortcuts: <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono">A/B/C</kbd> answer · <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono">←/→</kbd> navigate · <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono">F</kbd> flag · Right-click option to cross out
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Persistent Memory Analytics & History (5 cols) -->
+        <div class="lg:col-span-5 space-y-6">
+          <!-- Performance & Bank Mastery Card -->
+          <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 sm:p-6 space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-base font-bold text-slate-900 dark:text-white">Performance Memory</h2>
+              <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                Local Storage Active
+              </span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80">
+                <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Completed</p>
+                <p id="kpiAttempts" class="text-2xl font-extrabold mt-0.5">0</p>
+              </div>
+              <div class="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/50">
+                <p class="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Best Grade</p>
+                <p id="kpiBest" class="text-2xl font-extrabold text-emerald-700 dark:text-emerald-300 mt-0.5">—</p>
+              </div>
+              <div class="p-3.5 rounded-xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800/50">
+                <p class="text-xs font-semibold text-sky-700 dark:text-sky-400">Avg Score</p>
+                <p id="kpiAvg" class="text-2xl font-extrabold text-sky-700 dark:text-sky-300 mt-0.5">—</p>
+              </div>
+              <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80">
+                <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Pass Rate</p>
+                <p id="kpiPassRate" class="text-2xl font-extrabold mt-0.5">—</p>
+              </div>
+            </div>
+
+            <!-- Question Bank Mastery Bar -->
+            <div class="pt-1">
+              <div class="flex items-center justify-between text-xs mb-1.5">
+                <span class="font-semibold text-slate-600 dark:text-slate-300">Question Bank Mastery</span>
+                <span id="masteryLabel" class="font-mono font-bold text-slate-800 dark:text-slate-200">0 / 25 mastered</span>
+              </div>
+              <div class="w-full h-2.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                <div id="masteryBar" class="h-full bg-gradient-to-r from-sky-500 to-emerald-500 transition-all duration-500 rounded-full" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Past Attempts Transcript List -->
+          <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 sm:p-6">
+            <div class="flex items-center justify-between mb-3.5">
+              <h2 class="text-base font-bold text-slate-900 dark:text-white">Attempt Transcripts</h2>
+              <button id="resetMemoryBtn" type="button" class="hidden text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline">
+                Clear Memory
+              </button>
+            </div>
+            <div id="historyContainer" class="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================ -->
+    <!-- VIEW 2: ACTIVE CBT EXAM INTERFACE                                -->
+    <!-- ================================================================ -->
+    <section id="viewExam" class="hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Main Question Workspace (8-9 cols) -->
+        <div class="lg:col-span-8 xl:col-span-9 space-y-4 sm:space-y-5">
+          <!-- Question Meta Header -->
+          <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5 sm:gap-3">
+              <span id="examQCounter" class="px-3 py-1 rounded-xl bg-slate-900 dark:bg-sky-600 text-white font-bold text-xs sm:text-sm">
+                Question 1 of 25
+              </span>
+              <span id="examQStatePill" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                Unanswered
+              </span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button id="flagBtn" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-amber-400 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-colors">
+                <svg id="flagSvg" class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                  <line x1="4" y1="22" x2="4" y2="15"></line>
+                </svg>
+                <span id="flagLabel">Flag for Review</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Question Stem & Choices Card -->
+          <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 sm:p-8">
+            <div class="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 font-mono mb-3">
+              <span id="examQRef">ITEM #01 • 1.00 MARK</span>
+              <span class="hidden sm:inline">Tip: Click ✕ or right-click an option to strike through</span>
+            </div>
+
+            <h2 id="examQuestionText" class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white leading-relaxed mb-6">
+              Question text...
+            </h2>
+
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Select one:</p>
+
+            <!-- Answer Choices -->
+            <div id="examOptionsList" class="space-y-3">
+              <!-- Populated dynamically -->
+            </div>
+
+            <!-- Instant Feedback (Study Mode / Weak Drill only) -->
+            <div id="studyFeedbackPanel" class="hidden mt-5 p-4 rounded-xl border text-sm flex items-start gap-3">
+              <div id="studyFeedbackIcon" class="shrink-0 mt-0.5"></div>
+              <div id="studyFeedbackBody" class="leading-relaxed"></div>
+            </div>
+
+            <!-- Footer Utility Row -->
+            <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+              <button id="clearAnswerBtn" type="button" class="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors disabled:opacity-40 disabled:pointer-events-none">
+                Clear my choice
+              </button>
+              <span id="examModeIndicator" class="text-xs font-medium text-slate-400 dark:text-slate-500">Official Exam Mode</span>
+            </div>
+          </div>
+
+          <!-- Bottom Navigation Action Bar -->
+          <div class="flex items-center justify-between gap-3">
+            <button id="prevQuestionBtn" type="button" class="px-4 sm:px-5 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 font-semibold text-sm shadow-sm transition-all disabled:opacity-40 disabled:pointer-events-none flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>Previous</span>
+            </button>
+
+            <div class="flex items-center gap-2.5">
+              <button id="nextQuestionBtn" type="button" class="px-5 sm:px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-sm shadow-sm transition-all flex items-center gap-2">
+                <span>Next</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+              <button id="reviewBeforeSubmitBtn" type="button" class="hidden px-5 sm:px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm transition-all flex items-center gap-2">
+                <span>Review &amp; Finish</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Desktop Right Sidebar: Question Navigator (3-4 cols) -->
+        <aside class="hidden lg:block lg:col-span-4 xl:col-span-3 sticky top-24">
+          <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 class="font-bold text-sm text-slate-900 dark:text-white">Question Navigator</h3>
+              <span id="sidebarCountBadge" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300">0 / 25</span>
+            </div>
+
+            <div id="desktopGrid" class="grid grid-cols-5 gap-2">
+              <!-- Populated dynamically -->
+            </div>
+
+            <!-- Legend -->
+            <div class="grid grid-cols-2 gap-y-2 gap-x-2 pt-3 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400">
+              <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-sky-600"></span> Answered</div>
+              <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded border-2 border-slate-900 dark:border-white"></span> Current</div>
+              <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600"></span> Unanswered</div>
+              <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-400"></span> Flagged</div>
+            </div>
+
+            <div class="space-y-2 pt-2">
+              <button id="sidebarReviewBtn" type="button" class="w-full py-2.5 px-4 rounded-xl bg-slate-900 dark:bg-sky-600 hover:bg-slate-800 dark:hover:bg-sky-700 text-white font-semibold text-sm transition-colors">
+                Summary &amp; Finish
+              </button>
+              <button id="sidebarPauseBtn" type="button" class="w-full py-2 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors">
+                Save &amp; Pause Exam
+              </button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ================================================================ -->
+    <!-- VIEW 3: PRE-SUBMIT SUMMARY OF ATTEMPT (REALISTIC CBT CHECK)      -->
+    <!-- ================================================================ -->
+    <section id="viewSummary" class="hidden max-w-4xl mx-auto space-y-6">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">Pre-Submission Check</span>
+            <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5">Summary of Attempt</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Click any item below to revisit before final grading.</p>
+          </div>
+          <div class="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/70 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-center">
+            <div>
+              <p class="text-[10px] uppercase font-bold text-slate-500">Answered</p>
+              <p id="preSumAnswered" class="text-lg font-extrabold text-sky-600 dark:text-sky-400">0</p>
+            </div>
+            <div class="w-px h-7 bg-slate-300 dark:bg-slate-700"></div>
+            <div>
+              <p class="text-[10px] uppercase font-bold text-slate-500">Missing</p>
+              <p id="preSumMissing" class="text-lg font-extrabold text-rose-600 dark:text-rose-400">25</p>
+            </div>
+            <div class="w-px h-7 bg-slate-300 dark:bg-slate-700"></div>
+            <div>
+              <p class="text-[10px] uppercase font-bold text-slate-500">Flagged</p>
+              <p id="preSumFlagged" class="text-lg font-extrabold text-amber-600 dark:text-amber-400">0</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Status Table -->
+        <div class="max-h-96 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800" id="preSummaryList">
+          <!-- Populated dynamically -->
+        </div>
+
+        <!-- Final Submit Footer -->
+        <div class="p-5 sm:p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <button id="returnToAttemptBtn" type="button" class="w-full sm:w-auto px-5 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 font-semibold text-sm transition-colors">
+            ← Return to Attempt
+          </button>
+          <button id="finalSubmitBtn" type="button" class="w-full sm:w-auto px-7 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition-colors">
+            Submit All and Finish
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================ -->
+    <!-- VIEW 4: OFFICIAL SCORE REPORT & QUESTION AUDIT                   -->
+    <!-- ================================================================ -->
+    <section id="viewResults" class="hidden space-y-6">
+      <!-- Grade Hero Banner -->
+      <div id="resultHero" class="rounded-2xl p-6 sm:p-8 border shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div class="space-y-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <span id="resStatusTag" class="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider">PASSED</span>
+            <span id="resModeTag" class="text-xs font-semibold opacity-80">Official Exam Mode</span>
+          </div>
+          <h2 id="resTitle" class="text-2xl sm:text-3xl font-extrabold tracking-tight">Congratulations, you have successfully passed the examination!</h2>
+          <p id="resSubtitle" class="text-sm opacity-85">Saved to your local exam transcript history.</p>
+        </div>
+
+        <div class="flex items-center gap-5 shrink-0 bg-white/90 dark:bg-slate-900/90 px-6 py-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
+          <div class="text-center">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Grade</p>
+            <p id="resPercent" class="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white">84%</p>
+          </div>
+          <div class="w-px h-10 bg-slate-300 dark:bg-slate-700"></div>
+          <div class="text-center">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Marks</p>
+            <p id="resMarks" class="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-slate-200">21/25</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Moodle / PromExam Official Transcript Metadata Table -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div class="px-5 sm:px-6 py-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Official Examination Transcript</h3>
+          <div class="flex items-center gap-2">
+            <button id="retakeBtn" type="button" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs sm:text-sm font-semibold transition-colors">
+              Retake Exam
+            </button>
+            <button id="goLobbyBtn" type="button" class="px-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-colors">
+              Lobby
+            </button>
+          </div>
+        </div>
+        <div class="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+          <div class="grid grid-cols-1 sm:grid-cols-3 px-5 sm:px-6 py-3">
+            <span class="font-semibold text-slate-500 dark:text-slate-400">Candidate</span>
+            <span id="trCandidate" class="sm:col-span-2 font-semibold">—</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 px-5 sm:px-6 py-3 bg-slate-50/50 dark:bg-slate-800/20">
+            <span class="font-semibold text-slate-500 dark:text-slate-400">Started on</span>
+            <span id="trStarted" class="sm:col-span-2">—</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 px-5 sm:px-6 py-3">
+            <span class="font-semibold text-slate-500 dark:text-slate-400">State</span>
+            <span class="sm:col-span-2 font-medium">Finished — Code 7</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 px-5 sm:px-6 py-3 bg-slate-50/50 dark:bg-slate-800/20">
+            <span class="font-semibold text-slate-500 dark:text-slate-400">Completed on</span>
+            <span id="trCompleted" class="sm:col-span-2">—</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 px-5 sm:px-6 py-3">
+            <span class="font-semibold text-slate-500 dark:text-slate-400">Time taken</span>
+            <span id="trDuration" class="sm:col-span-2 font-mono font-semibold">—</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 px-5 sm:px-6 py-3 bg-slate-50/50 dark:bg-slate-800/20">
+            <span class="font-semibold text-slate-500 dark:text-slate-400">Grade</span>
+            <span id="trGrade" class="sm:col-span-2 font-bold">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detailed Item Review -->
+      <div class="space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white">Question-by-Question Audit</h3>
+          <div class="inline-flex items-center gap-1 p-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 self-start">
+            <button type="button" data-filter="all" class="audit-filter px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 dark:bg-sky-600 text-white">All</button>
+            <button type="button" data-filter="incorrect" class="audit-filter px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300">Incorrect</button>
+            <button type="button" data-filter="correct" class="audit-filter px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300">Correct</button>
+            <button type="button" data-filter="flagged" class="audit-filter px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300">Flagged</button>
+          </div>
+        </div>
+        <div id="auditList" class="space-y-4">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== MOBILE NAVIGATOR SHEET ==================== -->
+  <div id="mobileSheet" class="fixed inset-0 z-40 hidden lg:hidden">
+    <div id="mobileSheetOverlay" class="absolute inset-0 bg-slate-950/60 backdrop-blur-xs"></div>
+    <div class="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-900 rounded-t-3xl border-t border-slate-200 dark:border-slate-800 p-5 max-h-[82vh] overflow-y-auto shadow-2xl">
+      <div class="w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto mb-4"></div>
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="font-bold text-slate-900 dark:text-white">Question Navigator</h3>
+          <p id="mobileSheetCount" class="text-xs text-slate-500 dark:text-slate-400">0 of 25 answered</p>
+        </div>
+        <button id="closeMobileSheetBtn" type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div id="mobileGrid" class="grid grid-cols-5 gap-2.5 mb-5"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <button id="mobilePauseBtn" type="button" class="py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold text-sm">
+          Save &amp; Pause
+        </button>
+        <button id="mobileSummaryBtn" type="button" class="py-3 rounded-xl bg-slate-900 dark:bg-sky-600 text-white font-semibold text-sm">
+          Summary &amp; Finish
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== FLOATING CBT SCRATCHPAD MODAL ==================== -->
+  <div id="scratchpadModal" class="fixed inset-0 z-40 hidden items-center justify-center p-4">
+    <div id="scratchpadOverlay" class="absolute inset-0 bg-slate-950/50 backdrop-blur-xs"></div>
+    <div class="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-lg overflow-hidden">
+      <div class="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          <span class="text-sm font-bold">Exam Scratchpad (Auto-Saved)</span>
+        </div>
+        <button id="closeScratchpadBtn" type="button" class="text-slate-400 hover:text-white">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="p-4">
+        <textarea id="scratchpadArea" rows="7" placeholder="Jot down FAR parts, bonding resistance values, or questions to double-check..." class="w-full p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"></textarea>
+        <div class="flex items-center justify-between mt-3">
+          <button id="clearScratchpadBtn" type="button" class="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline">Clear notes</button>
+          <button id="doneScratchpadBtn" type="button" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== CUSTOM CONFIRMATION DIALOG ==================== -->
+  <div id="confirmDialog" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <div id="confirmOverlay" class="absolute inset-0 bg-slate-950/60 backdrop-blur-xs"></div>
+    <div class="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl max-w-md w-full p-6 space-y-4">
+      <h3 id="confirmTitle" class="text-lg font-bold text-slate-900 dark:text-white">Confirm Action</h3>
+      <p id="confirmBody" class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">Are you sure?</p>
+      <div class="flex items-center justify-end gap-2.5 pt-2">
+        <button id="confirmCancelBtn" type="button" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold">
+          Cancel
+        </button>
+        <button id="confirmOkBtn" type="button" class="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-bold shadow-sm">
+          Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TOAST NOTIFICATION ==================== -->
+  <div id="toastBar" class="fixed bottom-5 right-5 z-50 translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+    <div class="bg-slate-900 dark:bg-slate-800 text-white text-xs sm:text-sm font-medium px-4 py-3 rounded-xl shadow-xl border border-slate-700 flex items-center gap-2.5">
+      <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+      <span id="toastMessage">Saved</span>
+    </div>
+  </div>
+
+  <!-- ==================== CORE APPLICATION ENGINE ==================== -->
+  <script>
+    (function () {
+      'use strict';
+
+      /**
+       * ======================================================================
+       * 1. OFFICIAL QUESTION BANK — ALL 25 ITEMS FROM PromExamCode 7.docx
+       * ======================================================================
+       */
+      const EXAM_BANK = [
+        {
+          id: 1,
+          question: "___________ include any information necessary to maintain those design features that have been defined in the original type design as needed to preclude development of ignition sources.",
+          options: [
+            "Special federal aviation regulation(SFAR)",
+            "Critical design configuration control limitation(CDCCL)",
+            "Airworthiness limitation items(ALI)"
+          ],
+          correct: "Critical design configuration control limitation(CDCCL)"
+        },
+        {
+          id: 2,
+          question: "_____ defines the tasks for each types of scheduled maintenance Checks",
+          options: [
+            "AMM (Aircraft Maintenance Manual)",
+            "MPD (Maintenance Planning document)",
+            "FIM (Fault Isolation Manual)"
+          ],
+          correct: "MPD (Maintenance Planning document)"
+        },
+        {
+          id: 3,
+          question: "14 CFR part 65 contains information for the certification of",
+          options: [
+            "airmen other than flight crewmembers.",
+            "flight crewmembers other than pilots.",
+            "pilots, flight Instructors, and ground instructors."
+          ],
+          correct: "airmen other than flight crewmembers."
+        },
+        {
+          id: 4,
+          question: "A/C Nationality and Registration Markings are described under FAR Part:",
+          options: ["35", "45", "65"],
+          correct: "45"
+        },
+        {
+          id: 5,
+          question: "Aircraft turn around, stop checks, daily checks are examples of works",
+          options: [
+            "Performed in Scheduled maintenance",
+            "Performed in Unscheduled maintenance",
+            "Performed in both scheduled and unscheduled maintenance"
+          ],
+          correct: "Performed in Scheduled maintenance"
+        },
+        {
+          id: 6,
+          question: "An aircraft cannot fly without the issue of a Certificate of Release to Service (CRS)",
+          options: ["True", "False"],
+          correct: "True"
+        },
+        {
+          id: 7,
+          question: "CDCCL stands for",
+          options: [
+            "Critical Deviation Configuration Control list",
+            "Critical Design and Confirmation Control List",
+            "Critical Design Configuration Control List"
+          ],
+          correct: "Critical Design Configuration Control List"
+        },
+        {
+          id: 8,
+          question: "Certification: airman other than flight crewmembers is categorized under_______:",
+          options: ["FAR Part 21", "FAR Part 65", "FAR Part 121"],
+          correct: "FAR Part 65"
+        },
+        {
+          id: 9,
+          question: "CMM (Component Maintenance Manual) is generally issued and released by",
+          options: [
+            "Design organization for an aircraft",
+            "Design organization for a rotorcraft",
+            "Design organization for aircraft components"
+          ],
+          correct: "Design organization for aircraft components"
+        },
+        {
+          id: 10,
+          question: "In accordance with EASA Part 66, Maintenance certifying staff can demonstrate that in the preceding two years period, they have had",
+          options: [
+            "24 Months of relevant maintenance experience",
+            "12 Months of relevant maintenance experience",
+            "6 Months of relevant maintenance experience"
+          ],
+          correct: "6 Months of relevant maintenance experience"
+        },
+        {
+          id: 11,
+          question: "In general bonding jumpers or ground straps must have each connection made to have _________Ohms or less in resistance.",
+          options: ["0.003", "3", "0.3"],
+          correct: "0.003"
+        },
+        {
+          id: 12,
+          question: "What event led to fuel tank safety training?",
+          options: ["PanAm Flight 103", "Swissair Flight 111", "TWA Flight 800"],
+          correct: "TWA Flight 800"
+        },
+        {
+          id: 13,
+          question: "What type of failure is occurred if he/she deliberately refused to follow the proper procedures?",
+          options: ["Lapse", "Mistake", "Violation"],
+          correct: "Violation"
+        },
+        {
+          id: 14,
+          question: "Which class of fire involves energized electrical equipment?",
+          options: ["CLASS A", "CLASS C", "CLASS B"],
+          correct: "CLASS C"
+        },
+        {
+          id: 15,
+          question: "Which document include the CDCCL requirements and FTS (fuel tank safety procedure)?",
+          options: [
+            "Maintenance Programs, Airworthiness Directives, Service Bulletins, and Temporary Revisions",
+            "Maintenance Programs, Airworthiness Directive, Service Bulletins, Aircraft Maintenance Manuals, and Component Maintenance Manual"
+          ],
+          correct: "Maintenance Programs, Airworthiness Directive, Service Bulletins, Aircraft Maintenance Manuals, and Component Maintenance Manual"
+        },
+        {
+          id: 16,
+          question: "Which FAR Part talks about aircraft registration",
+          options: ["FAR Part 47", "FAR Part 65", "FAR Part 21"],
+          correct: "FAR Part 47"
+        },
+        {
+          id: 17,
+          question: "Which module teaches about wire selection and inspection strategies.",
+          options: ["MODULE D", "MODULE E", "MODULE F"],
+          correct: "MODULE E"
+        },
+        {
+          id: 18,
+          question: "Which of the following is an ignition source?",
+          options: [
+            "Open flame, spark, unapproved engine operation and static electricity",
+            "Open flame",
+            "Spark"
+          ],
+          correct: "Open flame, spark, unapproved engine operation and static electricity"
+        },
+        {
+          id: 19,
+          question: "Which of the following is not a component of shell model?",
+          options: ["Software", "Live ware", "Resource"],
+          correct: "Resource"
+        },
+        {
+          id: 20,
+          question: "Which of the following statement is false about special flight (ferry) permits?",
+          options: [
+            "Issued for aircraft that is safe to fly but does not meet airworthiness requirements",
+            "Fly for repairs, alterations, or maintenance, evacuation of area for impending danger, customer demonstration, allow an overweight flight beyond normal range over water where fuel is not available",
+            "Issued for aircraft that is safe to fly and does meet airworthiness requirements"
+          ],
+          correct: "Issued for aircraft that is safe to fly and does meet airworthiness requirements"
+        },
+        {
+          id: 21,
+          question: "Which one of the following can be considered a solution if one has to be distracted before finishing an assignment?",
+          options: [
+            "Mark or lock-off the incomplete work",
+            "Leave as is",
+            "Leave as is and trying not to forget"
+          ],
+          correct: "Mark or lock-off the incomplete work"
+        },
+        {
+          id: 22,
+          question: "Which one of the following destructions is considered un-avoidable?",
+          options: [
+            "Day-to-day safety problems that require immediate solving at work place",
+            "messages form home",
+            "management decisions concerning non-immediate work"
+          ],
+          correct: "management decisions concerning non-immediate work"
+        },
+        {
+          id: 23,
+          question: "Which one of the following dirty dozens is the number one cause of forgetting things?",
+          options: ["distraction", "assertiveness", "lack of communication"],
+          correct: "distraction"
+        },
+        {
+          id: 24,
+          question: "Which principle cause damage to EWIS?",
+          options: ["Clean as you go", "Conduct proper maintenance", "Fit and forget"],
+          correct: "Fit and forget"
+        },
+        {
+          id: 25,
+          question: "Wiring may not be affected by",
+          options: [
+            "Maintenance and repair",
+            "Environment and Installation",
+            "The number of contacts in a standard Cannon plug"
+          ],
+          correct: "The number of contacts in a standard Cannon plug"
+        }
+      ];
+
+      const STORAGE_KEY = 'promexam_code7_memory_v3';
+      const PASS_THRESHOLD = 75; // 75% passing standard
+
+      /**
+       * ======================================================================
+       * 2. PERSISTENT MEMORY LAYER (LocalStorage with Safe Fallback)
+       * ======================================================================
+       */
+      function createDefaultMemory() {
+        return {
+          profile: {
+            name: '',
+            id: '',
+            darkMode: false,
+            audio: true,
+            fontScale: 1 // 0: compact, 1: standard, 2: large
+          },
+          activeSession: null,
+          history: [],
+          mastery: {} // { [questionId]: { right: number, wrong: number, lastWrong: boolean } }
+        };
+      }
+
+      let memory = loadMemory();
+      let selectedLobbyMode = 'exam'; // 'exam' | 'study' | 'missed'
+      let runningSession = null;
+      let timerId = null;
+      let currentTranscript = null;
+      let auditFilter = 'all';
+      let pendingConfirmAction = null;
+
+      function loadMemory() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return createDefaultMemory();
+          const parsed = JSON.parse(raw);
+          return {
+            ...createDefaultMemory(),
+            ...parsed,
+            profile: { ...createDefaultMemory().profile, ...(parsed.profile || {}) },
+            mastery: parsed.mastery || {},
+            history: Array.isArray(parsed.history) ? parsed.history : []
+          };
+        } catch (err) {
+          return createDefaultMemory();
+        }
+      }
+
+      function saveMemory() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(memory));
+        } catch (err) {
+          // Graceful degradation if storage quota exceeded or blocked
+        }
+      }
+
+      /**
+       * ======================================================================
+       * 3. SYNTHETIC AUDIO FEEDBACK (TONE.JS)
+       * ======================================================================
+       */
+      let toneSynth = null;
+      function playCue(type) {
+        if (!memory.profile.audio || typeof Tone === 'undefined') return;
+        try {
+          if (Tone.context.state !== 'running') Tone.start();
+          if (!toneSynth) {
+            toneSynth = new Tone.Synth({
+              oscillator: { type: 'triangle' },
+              envelope: { attack: 0.005, decay: 0.05, sustain: 0, release: 0.05 }
+            }).toDestination();
+            toneSynth.volume.value = -18;
+          }
+          const now = Tone.now();
+          if (type === 'tap') toneSynth.triggerAttackRelease('D5', '32n', now);
+          else if (type === 'flag') toneSynth.triggerAttackRelease('F#5', '32n', now);
+          else if (type === 'right') toneSynth.triggerAttackRelease('A5', '16n', now);
+          else if (type === 'wrong') toneSynth.triggerAttackRelease('C4', '16n', now);
+          else if (type === 'finish') {
+            toneSynth.triggerAttackRelease('C5', '16n', now);
+            toneSynth.triggerAttackRelease('E5', '16n', now + 0.08);
+            toneSynth.triggerAttackRelease('G5', '8n', now + 0.16);
+          }
+        } catch (_) {}
+      }
+
+      /**
+       * ======================================================================
+       * 4. UTILITY FUNCTIONS
+       * ======================================================================
+       */
+      function shuffle(list) {
+        const arr = [...list];
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      }
+
+      function formatClock(sec) {
+        const s = Math.max(0, Math.floor(sec));
+        const m = Math.floor(s / 60);
+        const r = s % 60;
+        return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+      }
+
+      function formatDuration(sec) {
+        const s = Math.max(0, Math.floor(sec));
+        const m = Math.floor(s / 60);
+        const r = s % 60;
+        if (m === 0) return `${r} sec${r === 1 ? '' : 's'}`;
+        return `${m} min${m === 1 ? '' : 's'} ${r} sec${r === 1 ? '' : 's'}`;
+      }
+
+      function formatFullTime(ts) {
+        return new Date(ts).toLocaleString(undefined, {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit'
+        });
+      }
+
+      function formatCompactTime(ts) {
+        return new Date(ts).toLocaleString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit'
+        });
+      }
+
+      function getMissedQuestionIds() {
+        return Object.keys(memory.mastery)
+          .map(Number)
+          .filter((id) => memory.mastery[id] && memory.mastery[id].lastWrong);
+      }
+
+      let toastTimer = null;
+      function toast(msg) {
+        const bar = document.getElementById('toastBar');
+        document.getElementById('toastMessage').textContent = msg;
+        bar.classList.remove('translate-y-20', 'opacity-0');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          bar.classList.add('translate-y-20', 'opacity-0');
+        }, 2400);
+      }
+
+      function showConfirm({ title, body, okLabel = 'Confirm', danger = false, onOk }) {
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmBody').textContent = body;
+        const okBtn = document.getElementById('confirmOkBtn');
+        okBtn.textContent = okLabel;
+        okBtn.className = danger
+          ? 'px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold shadow-sm'
+          : 'px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-bold shadow-sm';
+        pendingConfirmAction = onOk;
+        const dlg = document.getElementById('confirmDialog');
+        dlg.classList.remove('hidden');
+        dlg.classList.add('flex');
+      }
+
+      function closeConfirm() {
+        const dlg = document.getElementById('confirmDialog');
+        dlg.classList.add('hidden');
+        dlg.classList.remove('flex');
+        pendingConfirmAction = null;
+      }
+
+      /**
+       * ======================================================================
+       * 5. THEME, FONT SCALE & VIEW ROUTER
+       * ======================================================================
+       */
+      function applyPreferences() {
+        // Dark Mode
+        document.documentElement.classList.toggle('dark', !!memory.profile.darkMode);
+        document.getElementById('sunIcon').classList.toggle('hidden', !memory.profile.darkMode);
+        document.getElementById('moonIcon').classList.toggle('hidden', !!memory.profile.darkMode);
+
+        // Audio Icon
+        document.getElementById('audioOnSvg').classList.toggle('hidden', !memory.profile.audio);
+        document.getElementById('audioOffSvg').classList.toggle('hidden', !!memory.profile.audio);
+
+        // Candidate header subtitle
+        const name = (memory.profile.name || '').trim();
+        const id = (memory.profile.id || '').trim();
+        const subtitle = name
+          ? `Candidate: ${name}${id ? ` (${id})` : ''}`
+          : 'Aviation Maintenance Examination';
+        document.getElementById('headerCandidateLabel').textContent = subtitle;
+
+        // Font scale class on question stem
+        const qEl = document.getElementById('examQuestionText');
+        const scales = [
+          'text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-relaxed mb-6',
+          'text-lg sm:text-xl font-bold text-slate-900 dark:text-white leading-relaxed mb-6',
+          'text-xl sm:text-2xl font-bold text-slate-900 dark:text-white leading-relaxed mb-6'
+        ];
+        qEl.className = scales[memory.profile.fontScale] || scales[1];
+      }
+
+      function showView(viewId) {
+        ['viewLobby', 'viewExam', 'viewSummary', 'viewResults'].forEach((id) => {
+          document.getElementById(id).classList.toggle('hidden', id !== viewId);
+        });
+
+        const inActiveExam = viewId === 'viewExam' || viewId === 'viewSummary';
+        const headerCenter = document.getElementById('examHeaderCenter');
+        headerCenter.classList.toggle('hidden', !inActiveExam);
+        headerCenter.classList.toggle('flex', inActiveExam);
+
+        document.getElementById('examProgressTrack').classList.toggle('hidden', !inActiveExam);
+        document.getElementById('scratchpadToggleBtn').classList.toggle('hidden', !inActiveExam);
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      /**
+       * ======================================================================
+       * 6. LOBBY RENDERING
+       * ======================================================================
+       */
+      function renderLobby() {
+        document.getElementById('candidateNameInput').value = memory.profile.name || '';
+        document.getElementById('candidateIdInput').value = memory.profile.id || '';
+
+        // 1. Resume Session Banner
+        const banner = document.getElementById('resumeBanner');
+        if (memory.activeSession) {
+          const s = memory.activeSession;
+          const ansCount = Object.keys(s.answers || {}).length;
+          const total = s.questions.length;
+          const modeName = s.mode === 'exam' ? 'Official Exam' : (s.mode === 'missed' ? 'Weak Drill' : 'Study Mode');
+          const clockInfo = s.mode === 'exam'
+            ? `${formatClock(s.remainingSeconds)} remaining`
+            : `${formatClock(s.elapsedSeconds)} elapsed`;
+          document.getElementById('resumeBadge').textContent = modeName;
+          document.getElementById('resumeDetails').textContent = `${ansCount} of ${total} questions answered • ${clockInfo}`;
+          banner.classList.remove('hidden');
+        } else {
+          banner.classList.add('hidden');
+        }
+
+        // 2. Weak Drill Mode Availability
+        const missedIds = getMissedQuestionIds();
+        const missedBtn = document.getElementById('missedModeCard');
+        const missedDesc = document.getElementById('missedModeDesc');
+        if (missedIds.length === 0) {
+          missedBtn.disabled = true;
+          missedDesc.textContent = 'No missed questions recorded yet.';
+          if (selectedLobbyMode === 'missed') {
+            selectLobbyMode('exam');
+          }
+        } else {
+          missedBtn.disabled = false;
+          missedDesc.textContent = `Drill ${missedIds.length} previously missed item${missedIds.length === 1 ? '' : 's'}.`;
+        }
+
+        // 3. KPI Stats & Bank Mastery
+        const history = memory.history;
+        document.getElementById('kpiAttempts').textContent = history.length;
+        if (history.length === 0) {
+          document.getElementById('kpiBest').textContent = '—';
+          document.getElementById('kpiAvg').textContent = '—';
+          document.getElementById('kpiPassRate').textContent = '—';
+        } else {
+          const best = Math.max(...history.map((h) => h.percentage));
+          const avg = Math.round(history.reduce((acc, h) => acc + h.percentage, 0) / history.length);
+          const passes = history.filter((h) => h.passed).length;
+          document.getElementById('kpiBest').textContent = `${best}%`;
+          document.getElementById('kpiAvg').textContent = `${avg}%`;
+          document.getElementById('kpiPassRate').textContent = `${Math.round((passes / history.length) * 100)}%`;
+        }
+
+        const masteredCount = EXAM_BANK.filter((q) => {
+          const m = memory.mastery[q.id];
+          return m && m.right > 0 && !m.lastWrong;
+        }).length;
+        document.getElementById('masteryLabel').textContent = `${masteredCount} / ${EXAM_BANK.length} mastered`;
+        document.getElementById('masteryBar').style.width = `${(masteredCount / EXAM_BANK.length) * 100}%`;
+
+        // 4. Transcript History
+        const histEl = document.getElementById('historyContainer');
+        const resetBtn = document.getElementById('resetMemoryBtn');
+        resetBtn.classList.toggle('hidden', history.length === 0 && Object.keys(memory.mastery).length === 0);
+
+        if (history.length === 0) {
+          histEl.innerHTML = `
+            <div class="text-center py-8 px-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700">
+              <p class="text-sm font-medium text-slate-500 dark:text-slate-400">No exam transcripts yet.</p>
+              <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Finished attempts are permanently logged here.</p>
+            </div>
+          `;
+        } else {
+          histEl.innerHTML = '';
+          history.forEach((rec) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'w-full text-left p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-sky-400 dark:hover:border-sky-500 hover:bg-sky-50/40 dark:hover:bg-sky-950/30 transition-all flex items-center justify-between gap-3 group';
+            const modeTxt = rec.mode === 'exam' ? 'Exam' : (rec.mode === 'missed' ? 'Drill' : 'Study');
+            item.innerHTML = `
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase ${rec.passed ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300' : 'bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300'}">
+                    ${rec.passed ? 'PASS' : 'FAIL'}
+                  </span>
+                  <span class="text-xs font-semibold text-slate-700 dark:text-slate-200">${modeTxt}</span>
+                  <span class="text-[11px] text-slate-400 truncate">• ${formatCompactTime(rec.completedAt)}</span>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Duration: ${formatDuration(rec.durationSeconds)}</p>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <div class="text-right">
+                  <p class="text-base font-extrabold ${rec.passed ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}">${rec.percentage}%</p>
+                  <p class="text-[11px] font-mono text-slate-400">${rec.score}/${rec.total}</p>
+                </div>
+                <svg class="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-sky-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            `;
+            item.addEventListener('click', () => {
+              playCue('tap');
+              openResults(rec);
+            });
+            histEl.appendChild(item);
+          });
+        }
+      }
+
+      function selectLobbyMode(mode) {
+        selectedLobbyMode = mode;
+        document.querySelectorAll('.mode-card').forEach((card) => {
+          const active = card.dataset.mode === mode;
+          card.className = active
+            ? 'mode-card text-left p-3.5 rounded-xl border-2 border-sky-600 bg-sky-50/70 dark:bg-sky-950/40 transition-all focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed'
+            : 'mode-card text-left p-3.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:border-slate-300 transition-all focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed';
+          const dot = card.querySelector('.mode-dot');
+          dot.className = active
+            ? 'mode-dot w-3.5 h-3.5 rounded-full border-4 border-sky-600 bg-white'
+            : 'mode-dot w-3.5 h-3.5 rounded-full border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800';
+        });
+
+        const durWrap = document.getElementById('durationPickerWrap');
+        durWrap.classList.toggle('opacity-50', mode !== 'exam');
+        document.getElementById('durationSelect').disabled = mode !== 'exam';
+
+        const btnLabel = document.getElementById('launchBtnLabel');
+        if (mode === 'exam') btnLabel.textContent = 'Begin Official Examination';
+        else if (mode === 'study') btnLabel.textContent = 'Start Study Session';
+        else btnLabel.textContent = `Start Weak Questions Drill (${getMissedQuestionIds().length})`;
+      }
+
+      /**
+       * ======================================================================
+       * 7. EXAM ENGINE — START, RESUME, TIMER, RENDER, ELIMINATION, NAVIGATE
+       * ======================================================================
+       */
+      function startSession(overrideMode) {
+        const mode = overrideMode || selectedLobbyMode;
+        const shuffleQs = document.getElementById('shuffleQuestionsChk').checked;
+        const shuffleOpts = document.getElementById('shuffleOptionsChk').checked;
+        const durationSec = parseInt(document.getElementById('durationSelect').value, 10) || 1800;
+
+        let pool = EXAM_BANK;
+        if (mode === 'missed') {
+          const missedIds = getMissedQuestionIds();
+          if (missedIds.length > 0) {
+            pool = EXAM_BANK.filter((q) => missedIds.includes(q.id));
+          }
+        }
+
+        let questions = pool.map((q) => ({
+          ...q,
+          options: shuffleOpts ? shuffle(q.options) : [...q.options]
+        }));
+        if (shuffleQs) questions = shuffle(questions);
+
+        runningSession = {
+          mode,
+          candidateName: (memory.profile.name || '').trim() || 'Candidate',
+          candidateId: (memory.profile.id || '').trim() || 'N/A',
+          startedAt: Date.now(),
+          index: 0,
+          remainingSeconds: durationSec,
+          elapsedSeconds: 0,
+          questions,
+          answers: {},      // { [qId]: string }
+          eliminated: {},   // { [qId]: string[] }
+          flagged: [],      // number[]
+          notes: ''
+        };
+
+        memory.activeSession = runningSession;
+        saveMemory();
+        playCue('tap');
+        enterExamWorkspace();
+      }
+
+      function resumeSession() {
+        if (!memory.activeSession) return;
+        runningSession = memory.activeSession;
+        playCue('tap');
+        enterExamWorkspace();
+        toast('Resumed saved examination');
+      }
+
+      function enterExamWorkspace() {
+        document.getElementById('scratchpadArea').value = runningSession.notes || '';
+        const modeLabels = {
+          exam: 'Official Exam Mode • Timed',
+          study: 'Study Mode • Instant Verification',
+          missed: 'Weak Questions Drill • Instant Verification'
+        };
+        document.getElementById('examModeIndicator').textContent = modeLabels[runningSession.mode] || 'Exam Mode';
+
+        showView('viewExam');
+        renderQuestion();
+        renderNavigatorGrids();
+        startClock();
+      }
+
+      function startClock() {
+        stopClock();
+        updateClockUI();
+        timerId = setInterval(() => {
+          if (!runningSession) {
+            stopClock();
+            return;
+          }
+          runningSession.elapsedSeconds += 1;
+          if (runningSession.mode === 'exam') {
+            runningSession.remainingSeconds = Math.max(0, runningSession.remainingSeconds - 1);
+            updateClockUI();
+            if (runningSession.remainingSeconds === 300) {
+              toast('5 minutes remaining');
+            }
+            if (runningSession.remainingSeconds <= 0) {
+              stopClock();
+              toast('Time expired — grading exam automatically');
+              completeAndGradeExam();
+              return;
+            }
+          } else {
+            updateClockUI();
+          }
+
+          if (runningSession.elapsedSeconds % 5 === 0) {
+            memory.activeSession = runningSession;
+            saveMemory();
+          }
+        }, 1000);
+      }
+
+      function stopClock() {
+        if (timerId) {
+          clearInterval(timerId);
+          timerId = null;
+        }
+      }
+
+      function updateClockUI() {
+        if (!runningSession) return;
+        const pill = document.getElementById('timerPill');
+        const txt = document.getElementById('timerText');
+
+        if (runningSession.mode === 'exam') {
+          const r = runningSession.remainingSeconds;
+          txt.textContent = formatClock(r);
+          if (r <= 300) {
+            pill.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-rose-950 border border-rose-500 font-mono text-sm sm:text-base font-bold tracking-wider text-rose-300 animate-pulse';
+          } else {
+            pill.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 font-mono text-sm sm:text-base font-bold tracking-wider text-white';
+          }
+        } else {
+          txt.textContent = formatClock(runningSession.elapsedSeconds);
+          pill.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 font-mono text-sm sm:text-base font-bold tracking-wider text-emerald-300';
+        }
+      }
+
+      function renderQuestion() {
+        if (!runningSession) return;
+        const idx = runningSession.index;
+        const total = runningSession.questions.length;
+        const q = runningSession.questions[idx];
+        const chosen = runningSession.answers[q.id];
+        const struck = runningSession.eliminated[q.id] || [];
+        const isFlagged = runningSession.flagged.includes(q.id);
+        const answeredCount = Object.keys(runningSession.answers).length;
+        const instantFeedback = runningSession.mode !== 'exam';
+
+        // Progress & Counters
+        document.getElementById('examProgressFill').style.width = `${(answeredCount / total) * 100}%`;
+        document.getElementById('sidebarCountBadge').textContent = `${answeredCount} / ${total}`;
+        document.getElementById('mobileGridBadge').textContent = `${answeredCount}/${total}`;
+        document.getElementById('mobileSheetCount').textContent = `${answeredCount} of ${total} answered`;
+
+        document.getElementById('examQCounter').textContent = `Question ${idx + 1} of ${total}`;
+        document.getElementById('examQRef').textContent = `BANK ITEM #${String(q.id).padStart(2, '0')} • 1.00 MARK`;
+
+        const statePill = document.getElementById('examQStatePill');
+        if (chosen !== undefined) {
+          statePill.textContent = 'Answer Saved';
+          statePill.className = 'px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800';
+        } else {
+          statePill.textContent = 'Not Yet Answered';
+          statePill.className = 'px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300';
+        }
+
+        // Flag Button
+        const flagBtn = document.getElementById('flagBtn');
+        const flagSvg = document.getElementById('flagSvg');
+        const flagLbl = document.getElementById('flagLabel');
+        if (isFlagged) {
+          flagBtn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-400 bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-200 text-xs sm:text-sm font-semibold transition-colors';
+          flagSvg.className = 'w-4 h-4 text-amber-500 fill-amber-400';
+          flagLbl.textContent = 'Flagged';
+        } else {
+          flagBtn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-amber-400 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-colors';
+          flagSvg.className = 'w-4 h-4 text-slate-400';
+          flagLbl.textContent = 'Flag for Review';
+        }
+
+        // Stem
+        document.getElementById('examQuestionText').textContent = q.question;
+
+        // Choices
+        const container = document.getElementById('examOptionsList');
+        container.innerHTML = '';
+        const letters = ['a', 'b', 'c', 'd'];
+
+        q.options.forEach((opt, i) => {
+          const isSelected = chosen === opt;
+          const isStruck = struck.includes(opt);
+          const letter = letters[i] || String(i + 1);
+
+          let rowCls = 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:border-sky-400 dark:hover:border-sky-500';
+          let badgeCls = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600';
+
+          if (instantFeedback && chosen !== undefined) {
+            if (opt === q.correct) {
+              rowCls = 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/40 ring-1 ring-emerald-500';
+              badgeCls = 'bg-emerald-600 text-white border-emerald-600';
+            } else if (isSelected && opt !== q.correct) {
+              rowCls = 'border-rose-500 bg-rose-50/80 dark:bg-rose-950/40 ring-1 ring-rose-500';
+              badgeCls = 'bg-rose-600 text-white border-rose-600';
+            }
+          } else if (isSelected) {
+            rowCls = 'border-sky-600 bg-sky-50/80 dark:bg-sky-950/40 ring-1 ring-sky-600';
+            badgeCls = 'bg-sky-600 text-white border-sky-600';
+          }
+
+          const wrapper = document.createElement('div');
+          wrapper.className = `group relative rounded-xl border-2 transition-all flex items-stretch ${rowCls}`;
+
+          const mainBtn = document.createElement('button');
+          mainBtn.type = 'button';
+          mainBtn.className = 'flex-1 text-left p-3.5 sm:p-4 flex items-start gap-3.5 focus:outline-none min-w-0';
+          mainBtn.innerHTML = `
+            <span class="w-7 h-7 rounded-lg border text-xs font-bold uppercase flex items-center justify-center shrink-0 mt-0.5 transition-colors ${badgeCls}">
+              ${letter}
+            </span>
+            <span class="text-sm sm:text-base font-medium leading-snug pt-0.5 break-words ${isStruck && !isSelected ? 'line-through opacity-45' : 'text-slate-800 dark:text-slate-100'}">
+              ${opt}
+            </span>
+          `;
+
+          mainBtn.addEventListener('click', () => chooseOption(q.id, opt));
+          mainBtn.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            toggleStrikeOption(q.id, opt);
+          });
+
+          // Strike-through / Eliminate button (CBT realism)
+          const strikeBtn = document.createElement('button');
+          strikeBtn.type = 'button';
+          strikeBtn.title = isStruck ? 'Restore option' : 'Cross out distractor';
+          strikeBtn.className = `px-3 flex items-center justify-center border-l border-slate-200/70 dark:border-slate-700/70 text-xs font-bold transition-colors rounded-r-xl ${isStruck ? 'text-rose-500 bg-rose-50/50 dark:bg-rose-950/30' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/70 dark:hover:bg-slate-800'}`;
+          strikeBtn.innerHTML = `<span class="sr-only">Cross out</span>✕`;
+          strikeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleStrikeOption(q.id, opt);
+          });
+
+          wrapper.appendChild(mainBtn);
+          wrapper.appendChild(strikeBtn);
+          container.appendChild(wrapper);
+        });
+
+        // Instant Study Feedback Panel
+        const fbPanel = document.getElementById('studyFeedbackPanel');
+        if (instantFeedback && chosen !== undefined) {
+          const isRight = chosen === q.correct;
+          fbPanel.classList.remove('hidden');
+          if (isRight) {
+            fbPanel.className = 'mt-5 p-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 text-sm flex items-start gap-3';
+            document.getElementById('studyFeedbackIcon').innerHTML = `<svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>`;
+            document.getElementById('studyFeedbackBody').innerHTML = `<strong>Correct!</strong> Matches official PromExam Code 7 answer key.`;
+          } else {
+            fbPanel.className = 'mt-5 p-4 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 text-sm flex items-start gap-3';
+            document.getElementById('studyFeedbackIcon').innerHTML = `<svg class="w-5 h-5 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>`;
+            document.getElementById('studyFeedbackBody').innerHTML = `<strong>Incorrect.</strong> The correct answer is: <span class="font-bold underline">${q.correct}</span>`;
+          }
+        } else {
+          fbPanel.classList.add('hidden');
+        }
+
+        // Clear & Nav Buttons
+        document.getElementById('clearAnswerBtn').disabled = chosen === undefined;
+        document.getElementById('prevQuestionBtn').disabled = idx === 0;
+        const isLast = idx === total - 1;
+        document.getElementById('nextQuestionBtn').classList.toggle('hidden', isLast);
+        document.getElementById('reviewBeforeSubmitBtn').classList.toggle('hidden', !isLast);
+      }
+
+      function chooseOption(qId, optText) {
+        if (!runningSession) return;
+        runningSession.answers[qId] = optText;
+        // Remove from eliminated if user explicitly picks it
+        if (runningSession.eliminated[qId]) {
+          runningSession.eliminated[qId] = runningSession.eliminated[qId].filter((x) => x !== optText);
+        }
+
+        if (runningSession.mode !== 'exam') {
+          const q = runningSession.questions.find((item) => item.id === qId);
+          playCue(q && q.correct === optText ? 'right' : 'wrong');
+        } else {
+          playCue('tap');
+        }
+
+        memory.activeSession = runningSession;
+        saveMemory();
+        renderQuestion();
+        renderNavigatorGrids();
+      }
+
+      function toggleStrikeOption(qId, optText) {
+        if (!runningSession) return;
+        if (!runningSession.eliminated[qId]) runningSession.eliminated[qId] = [];
+        const arr = runningSession.eliminated[qId];
+        const pos = arr.indexOf(optText);
+        if (pos >= 0) arr.splice(pos, 1);
+        else arr.push(optText);
+        playCue('tap');
+        memory.activeSession = runningSession;
+        saveMemory();
+        renderQuestion();
+      }
+
+      function clearCurrentChoice() {
+        if (!runningSession) return;
+        const q = runningSession.questions[runningSession.index];
+        delete runningSession.answers[q.id];
+        playCue('tap');
+        memory.activeSession = runningSession;
+        saveMemory();
+        renderQuestion();
+        renderNavigatorGrids();
+      }
+
+      function toggleFlagCurrent() {
+        if (!runningSession) return;
+        const q = runningSession.questions[runningSession.index];
+        const i = runningSession.flagged.indexOf(q.id);
+        if (i >= 0) runningSession.flagged.splice(i, 1);
+        else runningSession.flagged.push(q.id);
+        playCue('flag');
+        memory.activeSession = runningSession;
+        saveMemory();
+        renderQuestion();
+        renderNavigatorGrids();
+      }
+
+      function navigateTo(index) {
+        if (!runningSession) return;
+        if (index < 0 || index >= runningSession.questions.length) return;
+        runningSession.index = index;
+        playCue('tap');
+        memory.activeSession = runningSession;
+        saveMemory();
+        renderQuestion();
+        renderNavigatorGrids();
+      }
+
+      function renderNavigatorGrids() {
+        if (!runningSession) return;
+        [document.getElementById('desktopGrid'), document.getElementById('mobileGrid')].forEach((grid) => {
+          grid.innerHTML = '';
+          runningSession.questions.forEach((q, idx) => {
+            const isCurrent = idx === runningSession.index;
+            const isAnswered = runningSession.answers[q.id] !== undefined;
+            const isFlagged = runningSession.flagged.includes(q.id);
+
+            let cls = 'relative h-10 rounded-xl font-bold text-xs flex items-center justify-center transition-all focus:outline-none ';
+            if (isAnswered) {
+              cls += 'bg-sky-600 text-white hover:bg-sky-700 ';
+            } else {
+              cls += 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 ';
+            }
+            if (isCurrent) {
+              cls += 'ring-2 ring-slate-900 dark:ring-white ring-offset-2 dark:ring-offset-slate-900 ';
+            }
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = cls;
+            btn.innerHTML = `
+              <span>${idx + 1}</span>
+              ${isFlagged ? '<span class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 border-2 border-white dark:border-slate-900"></span>' : ''}
+            `;
+            btn.addEventListener('click', () => {
+              navigateTo(idx);
+              closeMobileSheet();
+            });
+            grid.appendChild(btn);
+          });
+        });
+      }
+
+      /**
+       * ======================================================================
+       * 8. PRE-SUBMIT SUMMARY SCREEN & FINAL GRADING
+       * ======================================================================
+       */
+      function openPreSubmitSummary() {
+        if (!runningSession) return;
+        const total = runningSession.questions.length;
+        const answered = Object.keys(runningSession.answers).length;
+        const missing = total - answered;
+        const flagged = runningSession.flagged.length;
+
+        document.getElementById('preSumAnswered').textContent = answered;
+        document.getElementById('preSumMissing').textContent = missing;
+        document.getElementById('preSumFlagged').textContent = flagged;
+
+        const list = document.getElementById('preSummaryList');
+        list.innerHTML = '';
+
+        runningSession.questions.forEach((q, idx) => {
+          const isAns = runningSession.answers[q.id] !== undefined;
+          const isFlag = runningSession.flagged.includes(q.id);
+
+          const row = document.createElement('button');
+          row.type = 'button';
+          row.className = 'w-full text-left px-5 sm:px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex items-center justify-between gap-4';
+          row.innerHTML = `
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center shrink-0 ${isAns ? 'bg-sky-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}">${idx + 1}</span>
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">${q.question}</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              ${isFlag ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200">Flagged</span>' : ''}
+              <span class="text-xs font-bold ${isAns ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}">
+                ${isAns ? 'Saved' : 'Not answered'}
+              </span>
+            </div>
+          `;
+          row.addEventListener('click', () => {
+            runningSession.index = idx;
+            showView('viewExam');
+            renderQuestion();
+            renderNavigatorGrids();
+          });
+          list.appendChild(row);
+        });
+
+        showView('viewSummary');
+      }
+
+      function completeAndGradeExam() {
+        if (!runningSession) return;
+        stopClock();
+        playCue('finish');
+
+        const completedAt = Date.now();
+        const total = runningSession.questions.length;
+        let score = 0;
+
+        // Update mastery memory per question
+        runningSession.questions.forEach((q) => {
+          const isRight = runningSession.answers[q.id] === q.correct;
+          if (isRight) score++;
+
+          if (!memory.mastery[q.id]) {
+            memory.mastery[q.id] = { right: 0, wrong: 0, lastWrong: false };
+          }
+          if (isRight) {
+            memory.mastery[q.id].right += 1;
+            memory.mastery[q.id].lastWrong = false;
+          } else {
+            memory.mastery[q.id].wrong += 1;
+            memory.mastery[q.id].lastWrong = true;
+          }
+        });
+
+        const percentage = Math.round((score / total) * 100);
+        const passed = percentage >= PASS_THRESHOLD;
+
+        const transcript = {
+          id: `tr_${completedAt}`,
+          mode: runningSession.mode,
+          candidateName: runningSession.candidateName,
+          candidateId: runningSession.candidateId,
+          startedAt: runningSession.startedAt,
+          completedAt,
+          durationSeconds: runningSession.elapsedSeconds || 1,
+          score,
+          total,
+          percentage,
+          passed,
+          questions: runningSession.questions,
+          answers: runningSession.answers,
+          flagged: runningSession.flagged
+        };
+
+        memory.history.unshift(transcript);
+        if (memory.history.length > 30) memory.history = memory.history.slice(0, 30);
+        memory.activeSession = null;
+        runningSession = null;
+        saveMemory();
+
+        openResults(transcript);
+      }
+
+      function pauseExamToLobby() {
+        if (runningSession) {
+          stopClock();
+          memory.activeSession = runningSession;
+          saveMemory();
+          runningSession = null;
+          toast('Exam paused and saved to memory');
+        }
+        renderLobby();
+        showView('viewLobby');
+      }
+
+      /**
+       * ======================================================================
+       * 9. OFFICIAL RESULTS & AUDIT VIEW
+       * ======================================================================
+       */
+      function openResults(transcript) {
+        currentTranscript = transcript;
+        auditFilter = 'all';
+
+        const hero = document.getElementById('resultHero');
+        const statusTag = document.getElementById('resStatusTag');
+        const title = document.getElementById('resTitle');
+
+        if (transcript.passed) {
+          hero.className = 'rounded-2xl p-6 sm:p-8 border border-emerald-200 dark:border-emerald-800/70 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/40 text-emerald-950 dark:text-emerald-50 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6';
+          statusTag.className = 'px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-emerald-600 text-white';
+          statusTag.textContent = 'PASSED';
+          title.textContent = 'Congratulations, you have successfully passed the examination!';
+        } else {
+          hero.className = 'rounded-2xl p-6 sm:p-8 border border-rose-200 dark:border-rose-800/70 bg-gradient-to-br from-rose-50 to-orange-50 dark:from-rose-950/50 dark:to-orange-950/40 text-rose-950 dark:text-rose-50 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6';
+          statusTag.className = 'px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-rose-600 text-white';
+          statusTag.textContent = 'NOT PASSED';
+          title.textContent = 'Minimum passing mark (75%) not achieved. Review missed questions below.';
+        }
+
+        const modeText = transcript.mode === 'exam' ? 'Official Exam Mode' : (transcript.mode === 'missed' ? 'Weak Questions Drill' : 'Study Mode');
+        document.getElementById('resModeTag').textContent = modeText;
+        document.getElementById('resPercent').textContent = `${transcript.percentage}%`;
+        document.getElementById('resMarks').textContent = `${transcript.score}/${transcript.total}`;
+
+        document.getElementById('trCandidate').textContent = `${transcript.candidateName || 'Candidate'}${transcript.candidateId && transcript.candidateId !== 'N/A' ? ` (${transcript.candidateId})` : ''}`;
+        document.getElementById('trStarted').textContent = formatFullTime(transcript.startedAt);
+        document.getElementById('trCompleted').textContent = formatFullTime(transcript.completedAt);
+        document.getElementById('trDuration').textContent = formatDuration(transcript.durationSeconds);
+        document.getElementById('trGrade').textContent = `${transcript.percentage} out of 100 (${transcript.score}/${transcript.total} marks)`;
+
+        updateAuditFilterUI();
+        renderAuditList();
+        showView('viewResults');
+      }
+
+      function updateAuditFilterUI() {
+        document.querySelectorAll('.audit-filter').forEach((btn) => {
+          const active = btn.dataset.filter === auditFilter;
+          btn.className = active
+            ? 'audit-filter px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 dark:bg-sky-600 text-white transition-colors'
+            : 'audit-filter px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors';
+        });
+      }
+
+      function renderAuditList() {
+        if (!currentTranscript) return;
+        const container = document.getElementById('auditList');
+        container.innerHTML = '';
+
+        const items = currentTranscript.questions
+          .map((q, idx) => ({
+            q,
+            idx,
+            userAns: currentTranscript.answers[q.id],
+            isRight: currentTranscript.answers[q.id] === q.correct,
+            isFlagged: (currentTranscript.flagged || []).includes(q.id)
+          }))
+          .filter((entry) => {
+            if (auditFilter === 'correct') return entry.isRight;
+            if (auditFilter === 'incorrect') return !entry.isRight;
+            if (auditFilter === 'flagged') return entry.isFlagged;
+            return true;
+          });
+
+        if (items.length === 0) {
+          container.innerHTML = `
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center text-sm text-slate-500">
+              No questions match this filter.
+            </div>
+          `;
+          return;
+        }
+
+        items.forEach(({ q, idx, userAns, isRight, isFlagged }) => {
+          const card = document.createElement('div');
+          card.className = `bg-white dark:bg-slate-900 rounded-2xl border ${isRight ? 'border-slate-200 dark:border-slate-800' : 'border-rose-300 dark:border-rose-800/70'} shadow-sm p-5 sm:p-6 space-y-4`;
+
+          const optionsHtml = q.options.map((opt, i) => {
+            const letter = ['a', 'b', 'c', 'd'][i] || i + 1;
+            const isKey = opt === q.correct;
+            const isPicked = opt === userAns;
+
+            let cls = 'border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300';
+            let tag = '';
+            if (isKey) {
+              cls = 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-100 font-semibold';
+              tag = '<span class="ml-auto text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 shrink-0">Correct</span>';
+            } else if (isPicked && !isKey) {
+              cls = 'border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-950/40 text-rose-950 dark:text-rose-100 font-semibold';
+              tag = '<span class="ml-auto text-[11px] font-bold px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-900 text-rose-700 dark:text-rose-300 shrink-0">Your Answer</span>';
+            }
+
+            return `
+              <div class="p-3 rounded-xl border text-sm flex items-center gap-3 ${cls}">
+                <span class="font-mono text-xs font-bold uppercase opacity-75">${letter}.</span>
+                <span class="leading-snug">${opt}</span>
+                ${tag}
+              </div>
+            `;
+          }).join('');
+
+          card.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold">Q${idx + 1}</span>
+                <span class="px-2.5 py-1 rounded-full text-xs font-bold ${isRight ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300' : 'bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300'}">
+                  ${isRight ? 'Correct (1/1)' : (userAns === undefined ? 'Unanswered (0/1)' : 'Incorrect (0/1)')}
+                </span>
+                ${isFlagged ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200">Flagged</span>' : ''}
+              </div>
+              <span class="text-xs font-mono text-slate-400">Item #${q.id}</span>
+            </div>
+            <h4 class="text-base font-bold text-slate-900 dark:text-white leading-relaxed">${q.question}</h4>
+            <div class="space-y-2">${optionsHtml}</div>
+            <div class="pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
+              <span class="font-semibold text-slate-800 dark:text-slate-200">Feedback:</span> The correct answer is: <span class="font-bold text-emerald-700 dark:text-emerald-400">${q.correct}</span>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      }
+
+      /**
+       * ======================================================================
+       * 10. DRAWERS, MODALS & EVENT BINDINGS
+       * ======================================================================
+       */
+      function openMobileSheet() {
+        document.getElementById('mobileSheet').classList.remove('hidden');
+      }
+      function closeMobileSheet() {
+        document.getElementById('mobileSheet').classList.add('hidden');
+      }
+      function openScratchpad() {
+        const m = document.getElementById('scratchpadModal');
+        m.classList.remove('hidden');
+        m.classList.add('flex');
+      }
+      function closeScratchpad() {
+        const m = document.getElementById('scratchpadModal');
+        m.classList.add('hidden');
+        m.classList.remove('flex');
+      }
+
+      function bindAllEvents() {
+        // Header Controls
+        document.getElementById('homeLogoBtn').addEventListener('click', () => {
+          if (runningSession) pauseExamToLobby();
+          else {
+            renderLobby();
+            showView('viewLobby');
+          }
+        });
+
+        document.getElementById('themeToggleBtn').addEventListener('click', () => {
+          memory.profile.darkMode = !memory.profile.darkMode;
+          saveMemory();
+          applyPreferences();
+          playCue('tap');
+        });
+
+        document.getElementById('audioToggleBtn').addEventListener('click', () => {
+          memory.profile.audio = !memory.profile.audio;
+          saveMemory();
+          applyPreferences();
+          if (memory.profile.audio) playCue('tap');
+          toast(memory.profile.audio ? 'Terminal sounds on' : 'Terminal sounds muted');
+        });
+
+        document.getElementById('fontSizeBtn').addEventListener('click', () => {
+          memory.profile.fontScale = (memory.profile.fontScale + 1) % 3;
+          saveMemory();
+          applyPreferences();
+          const names = ['Compact', 'Standard', 'Large'];
+          toast(`Font size: ${names[memory.profile.fontScale]}`);
+        });
+
+        // Candidate Profile Auto-Save
+        document.getElementById('candidateNameInput').addEventListener('input', (e) => {
+          memory.profile.name = e.target.value;
+          saveMemory();
+          applyPreferences();
+        });
+        document.getElementById('candidateIdInput').addEventListener('input', (e) => {
+          memory.profile.id = e.target.value;
+          saveMemory();
+          applyPreferences();
+        });
+
+        // Lobby Mode Cards
+        document.querySelectorAll('.mode-card').forEach((card) => {
+          card.addEventListener('click', () => {
+            if (card.disabled) return;
+            playCue('tap');
+            selectLobbyMode(card.dataset.mode);
+          });
+        });
+
+        // Lobby Launch & Resume
+        document.getElementById('launchExamBtn').addEventListener('click', () => {
+          if (memory.activeSession) {
+            showConfirm({
+              title: 'Replace Paused Session?',
+              body: 'You have an unfinished attempt saved in memory. Starting a new exam will overwrite it.',
+              okLabel: 'Start New Exam',
+              onOk: () => {
+                closeConfirm();
+                startSession();
+              }
+            });
+          } else {
+            startSession();
+          }
+        });
+
+        document.getElementById('resumeSavedBtn').addEventListener('click', resumeSession);
+        document.getElementById('discardSavedBtn').addEventListener('click', () => {
+          showConfirm({
+            title: 'Discard Saved Exam?',
+            body: 'Your progress in the paused attempt will be permanently deleted.',
+            okLabel: 'Discard',
+            danger: true,
+            onOk: () => {
+              closeConfirm();
+              memory.activeSession = null;
+              saveMemory();
+              renderLobby();
+              toast('Paused session discarded');
+            }
+          });
+        });
+
+        document.getElementById('resetMemoryBtn').addEventListener('click', () => {
+          showConfirm({
+            title: 'Clear All Exam Memory?',
+            body: 'This will erase your attempt transcripts, statistics, and question mastery tracking.',
+            okLabel: 'Clear Everything',
+            danger: true,
+            onOk: () => {
+              closeConfirm();
+              memory.history = [];
+              memory.mastery = {};
+              saveMemory();
+              renderLobby();
+              toast('Exam memory cleared');
+            }
+          });
+        });
+
+        // Exam Controls
+        document.getElementById('prevQuestionBtn').addEventListener('click', () => navigateTo(runningSession.index - 1));
+        document.getElementById('nextQuestionBtn').addEventListener('click', () => navigateTo(runningSession.index + 1));
+        document.getElementById('flagBtn').addEventListener('click', toggleFlagCurrent);
+        document.getElementById('clearAnswerBtn').addEventListener('click', clearCurrentChoice);
+        document.getElementById('reviewBeforeSubmitBtn').addEventListener('click', openPreSubmitSummary);
+        document.getElementById('sidebarReviewBtn').addEventListener('click', openPreSubmitSummary);
+        document.getElementById('sidebarPauseBtn').addEventListener('click', pauseExamToLobby);
+
+        // Mobile Navigator Sheet
+        document.getElementById('openMobileGridBtn').addEventListener('click', openMobileSheet);
+        document.getElementById('closeMobileSheetBtn').addEventListener('click', closeMobileSheet);
+        document.getElementById('mobileSheetOverlay').addEventListener('click', closeMobileSheet);
+        document.getElementById('mobilePauseBtn').addEventListener('click', () => {
+          closeMobileSheet();
+          pauseExamToLobby();
+        });
+        document.getElementById('mobileSummaryBtn').addEventListener('click', () => {
+          closeMobileSheet();
+          openPreSubmitSummary();
+        });
+
+        // Scratchpad
+        document.getElementById('scratchpadToggleBtn').addEventListener('click', openScratchpad);
+        document.getElementById('closeScratchpadBtn').addEventListener('click', closeScratchpad);
+        document.getElementById('doneScratchpadBtn').addEventListener('click', closeScratchpad);
+        document.getElementById('scratchpadOverlay').addEventListener('click', closeScratchpad);
+        document.getElementById('scratchpadArea').addEventListener('input', (e) => {
+          if (!runningSession) return;
+          runningSession.notes = e.target.value;
+          memory.activeSession = runningSession;
+          saveMemory();
+        });
+        document.getElementById('clearScratchpadBtn').addEventListener('click', () => {
+          document.getElementById('scratchpadArea').value = '';
+          if (runningSession) {
+            runningSession.notes = '';
+            memory.activeSession = runningSession;
+            saveMemory();
+          }
+        });
+
+        // Pre-Submit Summary View
+        document.getElementById('returnToAttemptBtn').addEventListener('click', () => {
+          showView('viewExam');
+          renderQuestion();
+        });
+        document.getElementById('finalSubmitBtn').addEventListener('click', () => {
+          if (!runningSession) return;
+          const missing = runningSession.questions.length - Object.keys(runningSession.answers).length;
+          showConfirm({
+            title: 'Submit Examination for Grading?',
+            body: missing > 0
+              ? `You have ${missing} unanswered question${missing === 1 ? '' : 's'}. Once submitted, you cannot modify your answers.`
+              : 'All questions are answered. Confirm final submission to view your official score report.',
+            okLabel: 'Submit & Grade',
+            onOk: () => {
+              closeConfirm();
+              completeAndGradeExam();
+            }
+          });
+        });
+
+        // Results View
+        document.getElementById('retakeBtn').addEventListener('click', () => {
+          startSession(currentTranscript ? currentTranscript.mode : 'exam');
+        });
+        document.getElementById('goLobbyBtn').addEventListener('click', () => {
+          renderLobby();
+          showView('viewLobby');
+        });
+        document.querySelectorAll('.audit-filter').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            auditFilter = btn.dataset.filter;
+            updateAuditFilterUI();
+            renderAuditList();
+          });
+        });
+
+        // Confirm Dialog
+        document.getElementById('confirmCancelBtn').addEventListener('click', closeConfirm);
+        document.getElementById('confirmOverlay').addEventListener('click', closeConfirm);
+        document.getElementById('confirmOkBtn').addEventListener('click', () => {
+          if (typeof pendingConfirmAction === 'function') pendingConfirmAction();
+        });
+
+        // Keyboard Shortcuts in Active Exam View
+        document.addEventListener('keydown', (e) => {
+          if (!runningSession) return;
+          const inExam = !document.getElementById('viewExam').classList.contains('hidden');
+          const modalOpen = !document.getElementById('confirmDialog').classList.contains('hidden')
+            || !document.getElementById('scratchpadModal').classList.contains('hidden');
+
+          if (e.key === 'Escape') {
+            closeConfirm();
+            closeScratchpad();
+            closeMobileSheet();
+            return;
+          }
+          if (!inExam || modalOpen) return;
+
+          const k = e.key.toLowerCase();
+          const q = runningSession.questions[runningSession.index];
+          if (k === 'arrowright') navigateTo(runningSession.index + 1);
+          else if (k === 'arrowleft') navigateTo(runningSession.index - 1);
+          else if (k === 'f') toggleFlagCurrent();
+          else if (['a', 'b', 'c'].includes(k)) {
+            const idx = ['a', 'b', 'c'].indexOf(k);
+            if (q && q.options[idx]) chooseOption(q.id, q.options[idx]);
+          }
+        });
+      }
+
+      // Initialize App
+      window.addEventListener('DOMContentLoaded', () => {
+        applyPreferences();
+        bindAllEvents();
+        selectLobbyMode('exam');
+        renderLobby();
+      });
+    })();
+  </script>
+</body>
+</html>
